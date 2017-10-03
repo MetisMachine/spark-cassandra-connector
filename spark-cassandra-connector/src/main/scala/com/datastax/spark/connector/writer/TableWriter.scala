@@ -40,12 +40,11 @@ class TableWriter[T] private (
     val valueSpec = quotedColumnNames.map(":" + _).mkString(", ")
 
     val ifNotExistsSpec = if (writeConf.ifNotExists) "IF NOT EXISTS " else ""
-    val optionsSpec = getUsingOptionSpec(writeConf.ttl, writeConf.timestamp)
 
     s"INSERT INTO ${quote(keyspaceName)}.${quote(tableName)} ($columnSpec) VALUES ($valueSpec) $ifNotExistsSpec$optionsSpec".trim
   }
 
-  private def deleteQueryTemplate(deleteColumns: ColumnSelector, writeConf: WriteConf): String = {
+  private def deleteQueryTemplate(deleteColumns: ColumnSelector): String = {
     val deleteColumnNames: Seq[String] = deleteColumns.selectFrom(tableDef).map(_.columnName)
     val (primaryKey, regularColumns) = columns.partition(_.isPrimaryKeyColumn)
     if (regularColumns.nonEmpty) {
@@ -58,13 +57,15 @@ class TableWriter[T] private (
     val deleteColumnsClause = deleteColumnNames.map(quote).mkString(", ")
     val whereClause = quotedColumnNames(primaryKey).map(c => s"$c = :$c").mkString(" AND ")
 
-    val timestampSpec = getTimestampSpec(writeConf.timestamp)
     val usingTimestampClause = if (timestampSpec.nonEmpty) s"USING ${timestampSpec.get}" else ""
+
+    if (ttlEnabled)
+      logWarning(s"${writeConf.ttl} is ignored for DELETE query")
 
     s"DELETE ${deleteColumnsClause} FROM ${quote(keyspaceName)}.${quote(tableName)} $usingTimestampClause WHERE $whereClause"
   }
 
-  private def updateQueryTemplate(writeConf: WriteConf): String = {
+  private[connector] lazy val queryTemplateUsingUpdate: String = {
     val (primaryKey, regularColumns) = columns.partition(_.isPrimaryKeyColumn)
     val (counterColumns, nonCounterColumns) = regularColumns.partition(_.isCounterColumn)
 
@@ -88,27 +89,26 @@ class TableWriter[T] private (
     val setCounterColumnsClause = quotedColumnNames(counterColumns).map(c => s"$c = $c + :$c")
     val setClause = (setNonCounterColumnsClause ++ setCounterColumnsClause).mkString(", ")
     val whereClause = quotedColumnNames(primaryKey).map(c => s"$c = :$c").mkString(" AND ")
-    val optionsSpec = getUsingOptionSpec(writeConf.ttl, writeConf.timestamp)
 
     s"UPDATE ${quote(keyspaceName)}.${quote(tableName)} $optionsSpec SET $setClause WHERE $whereClause"
   }
 
-  private def getTimestampSpec(timestamp: TimestampOption): Option[String] = {
-    timestamp match {
+  private lazy val timestampSpec: Option[String] = {
+    writeConf.timestamp match {
       case TimestampOption(PerRowWriteOptionValue(placeholder)) => Some(s"TIMESTAMP :$placeholder")
       case TimestampOption(StaticWriteOptionValue(value)) => Some(s"TIMESTAMP $value")
       case _ => None
     }
   }
 
-  private def getUsingOptionSpec(ttl: TTLOption, timestamp: TimestampOption): String = {
-    val ttlSpec = ttl match {
+  private lazy val ttlEnabled: Boolean = writeConf.ttl != TTLOption.defaultValue
+
+  private lazy val optionsSpec: String = {
+    val ttlSpec = writeConf.ttl match {
       case TTLOption(PerRowWriteOptionValue(placeholder)) => Some(s"TTL :$placeholder")
       case TTLOption(StaticWriteOptionValue(value)) => Some(s"TTL $value")
       case _ => None
     }
-
-    val timestampSpec = getTimestampSpec(timestamp)
 
     val options = List(ttlSpec, timestampSpec).flatten
     if (options.nonEmpty) s"USING ${options.mkString(" AND ")}" else ""
@@ -167,7 +167,7 @@ class TableWriter[T] private (
     * Write data with Cql UPDATE statement
     */
   def update(taskContext: TaskContext, data: Iterator[T]): Unit =
-    writeInternal(updateQueryTemplate(writeConf), taskContext, data)
+    writeInternal(queryTemplateUsingUpdate, taskContext, data)
 
   /**
     * Write data with Cql INSERT statement
@@ -182,7 +182,7 @@ class TableWriter[T] private (
     * @param data primary key values to select delete rows
     */
   def delete(columns: ColumnSelector) (taskContext: TaskContext, data: Iterator[T]): Unit =
-    writeInternal(deleteQueryTemplate(columns, writeConf), taskContext, data)
+    writeInternal(deleteQueryTemplate(columns), taskContext, data)
 
   private def writeInternal(queryTemplate: String, taskContext: TaskContext, data: Iterator[T]) {
     val updater = OutputMetricsUpdater(taskContext, writeConf)

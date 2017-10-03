@@ -889,7 +889,7 @@ class TableWriterSpec extends SparkCassandraITFlatSpecBase {
     // Try to delete rows older than year 2000.
     sc.cassandraTable(ks, "collections_mod").where("key = 6")
       .deleteFromCassandra(ks, "collections_mod",
-        writeConf = WriteConf(timestamp = TimestampOption.constant(new DateTime(2000, 1, 1, 7, 8, 8, 10))))
+        writeConf = WriteConf(ttl = TTLOption.constant(1), timestamp = TimestampOption.constant(new DateTime(2000, 1, 1, 7, 8, 8, 10))))
 
     val result = sc.cassandraTable(ks, "collections_mod").where("key = 6").collect()
 
