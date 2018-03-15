@@ -17,13 +17,14 @@ import scala.util.Properties
  */
 object Versions {
 
-  val crossScala = Seq("2.11.8", "2.10.6")
+  val crossScala = Seq("2.11.8")
 
   /* Leverages optional Spark 'scala-2.11' profile optionally set by the user via -Dscala-2.11=true if enabled */
-  lazy val scalaVersion = sys.props.get("scala-2.11") match {
+  /*lazy val scalaVersion = sys.props.get("scala-2.11") match {
     case Some(is) if is.nonEmpty && is.toBoolean => crossScala.head
     case crossBuildFor                           => crossScala.last
-  }
+  }*/
+  lazy val scalaVersion = crossScala.last
 
   /* For `scalaBinaryVersion.value outside an sbt task. */
   lazy val scalaBinary = scalaVersion.dropRight(2)
@@ -36,12 +37,12 @@ object Versions {
   val CommonsBeanUtils= "1.9.3"
   val Config          = "1.2.1"
   val Guava           = "16.0.1"
-  val JDK             = "1.7"
+  val JDK             = "1.8"
   val JodaC           = "1.2"
   val JodaT           = "2.3"
   val JOpt            = "3.2"
   val Lzf             = "0.8.4"
-  val Netty           = "4.0.33.Final"
+  val Netty           = "4.1.17.Final" //"4.0.33.Final"
   val CodaHaleMetrics = "3.0.2"
   val ScalaCheck      = "1.12.5"
   val ScalaMock       = "3.2"
@@ -57,7 +58,7 @@ object Versions {
   // and install in a local Maven repository. This is all done automatically, however it will work
   // only on Unix/OSX operating system. Windows users have to build and install Spark manually if the
   // desired version is not yet published into a public Maven repository.
-  val Spark           = "2.0.2"
+  val Spark           = "2.3.0"
   val SparkJetty      = "8.1.14.v20131031"
   val JSR166e         = "1.1.0"
   val Airlift         = "0.6"
