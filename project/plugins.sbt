@@ -12,6 +12,8 @@ resolvers += Resolver.typesafeRepo("releases")
 
 resolvers += "Spark Packages Main repo" at "https://dl.bintray.com/spark-packages/maven"
 
+addSbtPlugin("com.frugalmechanic" % "fm-sbt-s3-resolver" % "0.13.0")
+
 addSbtPlugin("org.typelevel" % "sbt-typelevel" % "0.3.1")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "0.8.5")
@@ -24,7 +26,7 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.4")
 
 //SbtAssembly 0.12.0 is included in sbt-spark-package
 resolvers += "Spark Packages Main repo" at "https://dl.bintray.com/spark-packages/maven" 
-addSbtPlugin("org.spark-packages" %% "sbt-spark-package" % "0.2.5")
+addSbtPlugin("org.spark-packages" %% "sbt-spark-package" % "0.2.6")
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2")
 
